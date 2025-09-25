@@ -1,15 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-"""
-EurocSaver class
 
-this defines the mapping from the ROS messages to EUROC/ASL format
-
-@Authors: Antonio Santo and Arturo Gil
-          Universidad Miguel Hernández de Elche
-          arturo.gil@umh.es
-@Time: November 2022
-"""
 import os
 import numpy as np
 import pandas as pd
@@ -17,6 +8,9 @@ import open3d as o3d
 import sensor_msgs.point_cloud2 as pc2
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+import rospy
+from sensor_msgs.msg import LaserScan
+
 
 
 class EurocSaver():
@@ -520,6 +514,66 @@ class EurocSaver():
                           header=['x', 'y', 'z', 'intensity', 't',
                                   'reflectivity', 'ring', 'ambient', 'range'])
         print('NUMBER OF POINTCLOUD SCANS FOUND: ', k)
+        return True
+
+    def save_laserscan(self, bag_file, topic, to_csv=True, to_xy=True):
+        """
+        Guarda datos de un LiDAR 2D (LaserScan) en CSV.
+        Puede guardar solo los ranges/intensities o convertirlos a coordenadas XY.
+        """
+        try:
+            os.makedirs(self.lidar_directory + '/data')
+        except OSError:
+            print("Directory exists or creation failed", self.lidar_directory)
+
+        print('SAVING LASERSCAN DATA!')
+        epoch_list = []
+
+        # Guardamos solo los timestamps primero
+        for topic, msg, t in bag_file.read_messages(topics=[topic]):
+            time_str = str(t.to_nsec())   # timestamp en ns
+            epoch_list.append(time_str)
+
+        raw_data2 = {'timestamp': epoch_list}
+        df = pd.DataFrame(raw_data2, columns=['timestamp'])
+        df.to_csv(self.lidar_directory + "/data.csv", index=False, header=['#timestamp [ns]'])
+        print('Saved data.csv with timestamps')
+
+        print('Now saving LASERSCAN measurements...')
+        k = 0
+        N = len(epoch_list)
+
+        for topic, msg, t in bag_file.read_messages(topics=[topic]):
+            print('Percentage complete: ', 100*k/N, '%')
+            k += 1
+            time_str = str(t.to_nsec())
+
+            ranges = np.array(msg.ranges)
+            intensities = np.array(msg.intensities) if msg.intensities else np.zeros_like(ranges)
+            if to_xy:
+                # Convertir a coordenadas cartesianas (2D)
+                angles = msg.angle_min + np.arange(len(ranges)) * msg.angle_increment
+                xs = ranges * np.cos(angles)
+                ys = ranges * np.sin(angles)
+
+                raw_data = {
+                    'x': xs,
+                    'y': ys,
+                    'range': ranges,
+                    'intensity': intensities
+                }
+                df = pd.DataFrame(raw_data, columns=['x', 'y', 'range', 'intensity'])
+            else:
+                # Guardar solo valores crudos
+                raw_data = {
+                    'range': ranges,
+                    'intensity': intensities
+                }
+                df = pd.DataFrame(raw_data, columns=['range', 'intensity'])
+
+            df.to_csv(self.lidar_directory + '/data/' + time_str + ".csv", index=False)
+
+        print('NUMBER OF LASERSCAN SCANS FOUND: ', k)
         return True
 
     def save_ground_truth(self, bag_file, topic):

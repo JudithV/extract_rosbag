@@ -7,14 +7,16 @@ The basic structure of the format is a set of directories containing:
 
 robot0/
     gps0/data.csv
-    lidar/data.csv
+    lidar_3d/data.csv
+         /data/timestamp.pcd
+    lidar_2d/data.csv
          /data/timestamp.pcd
     odom/
     ground_truth/
     camera/data.csv
            /data/images.png
 
-@Authors: Antonio Santo and Arturo Gil
+@Authors: Antonio Santo and Arturo Gil; Judith Vilella-Cantos
           arturo.gil@umh.es
 @Time: November 2022
 """
@@ -64,6 +66,7 @@ if __name__ == '__main__':
 
     topic_name_ground_truth = param_list.get('topic_name_ground_truth')
     topic_name_point_cloud = param_list.get('topic_name_point_cloud')
+    topic_name_laserscan = param_list.get('topic_name_laserscan')
     topic_name_odometry = param_list.get('topic_name_odometry')
     topic_name_gps = param_list.get('topic_name_gps')
     topic_name_imu = param_list.get('topic_name_imu')
@@ -79,6 +82,7 @@ if __name__ == '__main__':
     save_point_cloud_as_pcd = param_list.get('save_point_cloud_as_pcd')
 
     print('POINT CLOUD TOPIC (LiDAR): ', topic_name_point_cloud)
+    print('LASERSCAN TOPIC (LiDAR 2D): ', topic_name_laserscan)
     print('GROUND TRUTH TOPIC: ', topic_name_ground_truth)
     print('ODOMETRY TOPIC: ', topic_name_odometry)
     print('GPS TOPIC: ', topic_name_gps)
@@ -168,6 +172,15 @@ if __name__ == '__main__':
         except IndexError:
             print('Error saving', topic_name_point_cloud)
             pass
+    if topic_name_laserscan:
+        try:
+            print('Saving 2D LiDAR from: ', topic_name_laserscan)
+            eurocsaver.save_laserscan(bag, topic_name_laserscan)
+        except IndexError:
+            print('Error saving ', topic_name_laserscan)
+            print('The topic name may be non-existent')
+            pass
+
     if topic_name_tf:
         try:
             print('Saving topic_name_tf: ', topic_name_tf)
